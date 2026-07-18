@@ -281,6 +281,24 @@
       box-shadow: none;
     }
     #sheet, #sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* Une section d'article ne doit jamais être coupée entre deux pages avec son
+       titre isolé en bas de page ; si la section est plus longue qu'une page, le
+       titre reste au moins collé au premier paragraphe (break-after: avoid). */
+    #sheet .parties { break-inside: avoid; }
+    #sheet section.article { break-inside: avoid; orphans: 3; widows: 3; }
+    #sheet section.article h3 { break-after: avoid; }
+    /* En écran, #sheet est un flex column avec .foot poussé en bas via
+       margin-top:auto pour occuper toute la hauteur A4 (296mm) même sur un
+       document court. En impression réelle (page.pdf / @page), le moteur de
+       pagination Chromium respecte cet auto-margin et pousse le pied de page
+       sur une page à part quasi vide. On repasse en flux bloc normal pour que
+       le pied de page suive directement le dernier article, et on n'impose
+       PAS break-inside:avoid sur .foot : ce ne sont que des mentions
+       (footerMentions + disclaimer), pas un article juridique dont la
+       cohérence dépend d'être sur une seule page ; les laisser filer sur la
+       page suivante si besoin évite une page quasi vide. */
+    #sheet { display: block; }
+    #sheet .foot { margin-top: 10px; padding-top: 8px; }
   }
 </style>
 </head>
