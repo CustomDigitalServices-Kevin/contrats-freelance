@@ -1,0 +1,18 @@
+# Node / tooling
+node_modules/
+
+# Test / tooling artifacts
+*.png
+.playwright-mcp/
+*.tmp
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets / env
+.env
+.env.*
+!.env.example
