@@ -212,6 +212,31 @@
   }
   .option-warning.show { display: block; }
 
+  /* Clauses obligatoires (core, non retirables) */
+  #doc-clauses-core { display: flex; flex-direction: column; gap: 4px; }
+  .clause-core-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+    padding: 3px 0;
+  }
+  .clause-core-item .lock { font-size: 11px; color: #9ca3af; }
+
+  /* Clauses personnalisées */
+  #custom-clauses { display: flex; flex-direction: column; gap: 10px; }
+  .custom-clause-item {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .custom-clause-item .row-head { display: flex; gap: 8px; align-items: center; }
+  .custom-clause-item .row-head input { flex: 1; }
+
   /* Toggle switch */
   .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }
   .switch input { opacity: 0; width: 0; height: 0; }
@@ -541,8 +566,29 @@
     <!-- ===== Step 3 : Clauses ===== -->
     <div class="step-panel" data-panel="3">
       <div class="card">
-        <h2>Options de clauses</h2>
-        <p class="hint">Des valeurs sûres sont pré-sélectionnées. Les options signalées « à risque » ne sont jamais activées par défaut.</p>
+        <h2>Clauses obligatoires</h2>
+        <p class="hint">Toujours incluses dans le document (noyau légal), non retirables.</p>
+        <div id="doc-clauses-core"></div>
+      </div>
+      <div class="card">
+        <h2>Clauses du contrat</h2>
+        <p class="hint">Pré-cochées par défaut avec des valeurs sûres. Les clauses signalées « à risque » ne sont jamais activées par défaut.</p>
+        <div id="doc-clauses-included"></div>
+      </div>
+      <div class="card">
+        <h2>Clauses supplémentaires</h2>
+        <p class="hint">Décochées par défaut, à ajouter selon ton besoin.</p>
+        <div id="doc-clauses-optional"></div>
+      </div>
+      <div class="card">
+        <h2>Clauses personnalisées</h2>
+        <p class="hint">Contenu rédigé par vous, non vérifié par l'outil.</p>
+        <div id="custom-clauses"></div>
+        <button type="button" id="btn-add-custom-clause">+ Ajouter une clause personnalisée</button>
+      </div>
+      <div class="card">
+        <h2>Paramètres</h2>
+        <p class="hint">Réglages fins des clauses ci-dessus (délais, taux, montants…).</p>
         <div id="doc-options"></div>
       </div>
       <div class="card">
@@ -629,6 +675,8 @@ const defaultState = {
   client: { nom: "", siren: "", adresse: "", representant: "" },
   fields: {},
   options: {},
+  clauses: {},
+  customClauses: [],
   templateId: "classique",
   colorMode: "auto",
   customColor: "#1d4ed8"
@@ -639,6 +687,8 @@ let state = Object.assign({}, defaultState, loadJSON(LS_STATE, {}));
 state.client = Object.assign({}, defaultState.client, state.client || {});
 state.fields = state.fields || {};
 state.options = state.options || {};
+state.clauses = state.clauses || {};
+state.customClauses = state.customClauses || [];
 
 /* ---------- Helpers ---------- */
 const $ = (id) => document.getElementById(id);
@@ -663,6 +713,34 @@ function currentDocument() {
 }
 function persistProfile() { saveJSON(LS_PROFILE, profile); }
 function persistState() { saveJSON(LS_STATE, state); }
+
+/* ---------- Migration v1 -> v2 (catalogue de clauses) ----------
+   En v1, certaines options togglaient des sections entières du document
+   (reciproque, exclusivite, horairesImposes, plafondResponsabilite,
+   sousTraitance, nonSollicitation). En v2 ces mêmes ids existent dans le
+   catalogue `clauses` de chaque document. Un état v1 restauré doit
+   continuer à produire le même document (ex : un NDA réciproque reste
+   réciproque) : on traduit ces clés de state.options vers state.clauses
+   et on les retire des options, une seule fois, au chargement. */
+const V1_MIGRATABLE_CLAUSE_IDS = [
+  "reciproque", "exclusivite", "horairesImposes",
+  "plafondResponsabilite", "sousTraitance", "nonSollicitation"
+];
+function migrateV1ClausesToV2() {
+  const doc = currentDocument();
+  if (!doc || !Array.isArray(doc.clauses)) return;
+  let migrated = false;
+  for (const id of V1_MIGRATABLE_CLAUSE_IDS) {
+    const isInCatalog = doc.clauses.some((c) => c.id === id);
+    if (!isInCatalog) continue;
+    if (state.options && Object.prototype.hasOwnProperty.call(state.options, id)) {
+      state.clauses[id] = state.options[id] === true;
+      delete state.options[id];
+      migrated = true;
+    }
+  }
+  if (migrated) persistState();
+}
 
 /* ---------- Stepper navigation ---------- */
 function renderStepper() {
@@ -943,15 +1021,21 @@ function selectDocument(id) {
   state.documentId = id;
   state.fields = {};
   state.options = {};
+  state.clauses = {};
+  state.customClauses = [];
   const doc = currentDocument();
   if (doc) {
     for (const f of (doc.fields || [])) state.fields[f.id] = "";
     for (const o of (doc.options || [])) state.options[o.id] = o.default;
+    for (const c of (doc.clauses || [])) {
+      if (!c.core) state.clauses[c.id] = c.default === true;
+    }
   }
   persistState();
   renderDocChoice();
   renderDocFields();
   renderDocOptions();
+  renderClauses();
   renderDisclaimerBox();
   renderPreview();
 }
@@ -1075,6 +1159,122 @@ function renderDocOptions() {
   }
 }
 
+/* ---------- Step 3 : catalogue de clauses (v2) ----------
+   Les clauses `core` du document (noyau légal) sont toujours incluses et
+   n'ont pas de case à cocher. Les clauses non-core sont réparties en deux
+   groupes lisibles : "Clauses du contrat" (default true, pré-cochées) et
+   "Clauses supplémentaires" (default false). state.clauses ne stocke QUE
+   les ids non-core (les core sont toujours vraies, cf isClauseOn côté
+   clauses.js) ; une clause absente de state.clauses retombe sur son
+   default déclaré dans le catalogue. */
+function isClauseChecked(c) {
+  // Miroir exact de isClauseOn() côté clauses.js : une clause absente de
+  // state.clauses retombe sur son default déclaré dans le catalogue (ne
+  // JAMAIS supposer "décochée" par défaut, sous peine de désynchroniser
+  // l'UI du document réellement généré — notamment après une migration
+  // v1 -> v2 où state.clauses ne contient que les ids migrés).
+  if (Object.prototype.hasOwnProperty.call(state.clauses, c.id)) {
+    return state.clauses[c.id] === true;
+  }
+  return c.default === true;
+}
+function clauseRowHtml(c) {
+  const val = isClauseChecked(c);
+  return `
+    <div class="option-row" data-clause-row="${c.id}">
+      <div class="option-head">
+        <span class="label">${escapeHtml(c.label)}${c.risky ? ' <span class="risky-badge">Clause à risque</span>' : ""}</span>
+        <label class="switch">
+          <input type="checkbox" id="clause-${c.id}" data-clause="${c.id}" ${val ? "checked" : ""}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      ${c.help ? `<span class="option-help">${escapeHtml(c.help)}</span>` : ""}
+      ${c.risky && c.warning ? `<div class="option-warning${val ? " show" : ""}" data-clause-warning="${c.id}">${escapeHtml(c.warning)}</div>` : ""}
+    </div>`;
+}
+function renderClauseGroup(containerId, list) {
+  const host = $(containerId);
+  if (!list.length) {
+    host.innerHTML = '<p class="hint">Aucune clause dans cette catégorie pour ce document.</p>';
+    return;
+  }
+  host.innerHTML = list.map(clauseRowHtml).join("");
+  for (const c of list) {
+    $("clause-" + c.id).addEventListener("change", (e) => {
+      state.clauses[c.id] = e.target.checked;
+      persistState();
+      const warnEl = document.querySelector(`[data-clause-warning="${c.id}"]`);
+      if (warnEl) warnEl.classList.toggle("show", e.target.checked);
+      renderPreview();
+    });
+  }
+}
+function renderClauses() {
+  const doc = currentDocument();
+  if (!doc || !Array.isArray(doc.clauses)) {
+    $("doc-clauses-core").innerHTML = '<p class="hint">Choisis un document à l\'étape 2.</p>';
+    $("doc-clauses-included").innerHTML = "";
+    $("doc-clauses-optional").innerHTML = "";
+    return;
+  }
+  const core = doc.clauses.filter((c) => c.core);
+  const included = doc.clauses.filter((c) => !c.core && c.default === true);
+  const optional = doc.clauses.filter((c) => !c.core && c.default === false);
+  $("doc-clauses-core").innerHTML = core.length
+    ? core.map((c) => `<div class="clause-core-item">${escapeHtml(c.label)}<span class="lock">— incluse</span></div>`).join("")
+    : '<p class="hint">Aucune.</p>';
+  renderClauseGroup("doc-clauses-included", included);
+  renderClauseGroup("doc-clauses-optional", optional);
+}
+
+/* ---------- Step 3 : clauses personnalisées (custom) ---------- */
+function renderCustomClauses() {
+  const host = $("custom-clauses");
+  const list = state.customClauses || [];
+  if (!list.length) {
+    host.innerHTML = '<p class="hint">Aucune clause personnalisée pour l\'instant.</p>';
+    return;
+  }
+  host.innerHTML = list.map((cc) => `
+    <div class="custom-clause-item">
+      <div class="row-head">
+        <input type="text" data-custom-field="title" placeholder="Titre de la clause" value="${escapeHtml(cc.title || "")}">
+        <button type="button" class="small danger" data-custom-remove>Supprimer</button>
+      </div>
+      <textarea data-custom-field="text" placeholder="Texte de la clause (une ligne vide sépare les paragraphes)">${escapeHtml(cc.text || "")}</textarea>
+      <p class="hint">Contenu rédigé par vous, non vérifié par l'outil.</p>
+    </div>`).join("");
+  host.querySelectorAll('[data-custom-field="title"]').forEach((input, i) => {
+    input.addEventListener("input", () => {
+      state.customClauses[i].title = input.value;
+      persistState();
+      renderPreview();
+    });
+  });
+  host.querySelectorAll('[data-custom-field="text"]').forEach((textarea, i) => {
+    textarea.addEventListener("input", () => {
+      state.customClauses[i].text = textarea.value;
+      persistState();
+      renderPreview();
+    });
+  });
+  host.querySelectorAll("[data-custom-remove]").forEach((btn, i) => {
+    btn.addEventListener("click", () => {
+      state.customClauses.splice(i, 1);
+      persistState();
+      renderCustomClauses();
+      renderPreview();
+    });
+  });
+}
+$("btn-add-custom-clause").addEventListener("click", () => {
+  state.customClauses.push({ title: "", text: "" });
+  persistState();
+  renderCustomClauses();
+  renderPreview();
+});
+
 /* ---------- Disclaimer box (step 3) ---------- */
 function renderDisclaimerBox() {
   const box = $("disclaimer-box");
@@ -1096,6 +1296,10 @@ function buildDataObject() {
     client: Object.assign({}, state.client),
     fields: Object.assign({}, state.fields),
     options: Object.assign({}, state.options),
+    clauses: Object.assign({}, state.clauses),
+    customClauses: (state.customClauses || [])
+      .filter((cc) => cc && cc.text && cc.text.trim() !== "")
+      .map((cc) => ({ title: cc.title || "", text: cc.text })),
     today: todayFR()
   };
 }
@@ -1212,6 +1416,9 @@ async function buildDocxBlob(doc, out) {
 
   const grayLight = { style: BorderStyle.SINGLE, size: 4, color: "E5E7EB" };
   const cellBorders = { top: grayLight, bottom: grayLight, left: grayLight, right: grayLight };
+  // Reflète sobrement l'accent choisi (logo auto ou palette) sur les titres du
+  // DOCX, sans tenter de reproduire toute la mise en forme CSS des templates.
+  const accentHex = currentAccent().replace("#", "").toUpperCase();
 
   function partyCell(label, name, lines) {
     const children = [
@@ -1265,7 +1472,7 @@ async function buildDocxBlob(doc, out) {
   }
   children.push(new Paragraph({
     heading: HeadingLevel.TITLE,
-    children: [new TextRun({ text: out.title || doc.label, bold: true })]
+    children: [new TextRun({ text: out.title || doc.label, bold: true, color: accentHex })]
   }));
   if (out.subtitle) {
     children.push(new Paragraph({
@@ -1280,7 +1487,7 @@ async function buildDocxBlob(doc, out) {
     children.push(new Paragraph({
       heading: HeadingLevel.HEADING_2,
       spacing: { before: 200, after: 100 },
-      children: [new TextRun({ text: section.heading, bold: true })]
+      children: [new TextRun({ text: section.heading, bold: true, color: accentHex })]
     }));
     for (const paragraph of section.paragraphs || []) {
       children.push(new Paragraph({
@@ -1357,10 +1564,13 @@ $("s-customcolor").value = state.customColor || "#1d4ed8";
 refreshTplPicker();
 refreshColorSwatches();
 clientToForm();
+migrateV1ClausesToV2();
 renderStepper();
 renderDocChoice();
 renderDocFields();
 renderDocOptions();
+renderClauses();
+renderCustomClauses();
 renderDisclaimerBox();
 renderPreview();
 if (typeof window.docx === "undefined") {
