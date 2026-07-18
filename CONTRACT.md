@@ -102,6 +102,17 @@ Rules:
 - `core: true` for: parties/préambule, objet, prix, conditions de règlement, pénalités + indemnité
   40 EUR (L441-10/D441-5), droit applicable/juridiction, and every mention the RAG lists as
   obligatoire. These NEVER get a toggle in the UI.
+- ESCOMPTE (advisor 2026-07-18, gap V1) : the conditions d'escompte are a MANDATORY CGV mention
+  (art. L441-1, economie.gouv.fr fiche CGV). The CGV core "conditions de règlement" section MUST
+  state either the escompte rate (new optional field `escompte`, type number, percent) or, when the
+  field is empty, the exact sentence "Aucun escompte n'est accordé en cas de paiement anticipé.".
+  Same rule applies to the prestation contract's payment section.
+- Clause pénale (if offered): wording must NOT present the amount as definitive; art. 1231-5 code
+  civil lets the judge revise it d'office (any contrary stipulation is deemed unwritten).
+- Non-concurrence (B2B): risky:true, default:false; warning mentions proportionality (durée, zone,
+  activité limitées) and does NOT claim a mandatory financial counterpart (that rule is labour law,
+  not B2B).
+- Custom clauses UI must show the inline help "Contenu rédigé par vous, non vérifié par l'outil."
 - Existing v1 toggle options that enable/disable whole sections (plafondResponsabilite,
   sousTraitance, nonSollicitation, exclusivite, horairesImposes, reciproque...) MIGRATE into
   `clauses` entries (same ids, same defaults, same risky/warning). `options` keeps only PARAMETERS
