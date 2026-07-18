@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Générateur de contrats freelance</title>
+<title>Générateur de contrats : CGV, prestation, NDA</title>
 <style>
   :root {
     --ink: #1a1d24;
@@ -143,6 +143,23 @@
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.primary:hover { background: #1e40af; }
   button:disabled { opacity: .5; cursor: not-allowed; }
+  button.small { padding: 3px 8px; font-size: 12px; }
+  button.danger { color: var(--danger); }
+
+  /* Logo (step 1) */
+  #logo-dropzone {
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color .15s, background .15s;
+  }
+  #logo-dropzone.dragover { border-color: var(--accent); background: #eff6ff; }
+  #logo-thumb-wrap { display: none; align-items: center; gap: 10px; }
+  #logo-preview-thumb { max-height: 48px; max-width: 160px; display: block; }
+  #logo-status { font-size: 11.5px; color: var(--muted); margin: 0; }
 
   #wizard-nav { display: flex; justify-content: space-between; gap: 10px; }
 
@@ -235,8 +252,19 @@
     display: flex;
     flex-direction: column;
   }
-  #sheet h2.doc-title { font-size: 21px; margin: 0 0 2px; font-weight: 700; color: var(--accent); }
-  #sheet .doc-subtitle { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; }
+  #sheet .doc-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 2px solid var(--cacc, var(--accent));
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  #sheet .doc-header-logo img { max-height: 56px; max-width: 180px; display: block; }
+  #sheet .doc-header-title { flex: 1; min-width: 0; }
+  #sheet h2.doc-title { font-size: 21px; margin: 0 0 2px; font-weight: 700; color: var(--cacc, var(--accent)); }
+  #sheet .doc-subtitle { font-size: 12.5px; color: var(--muted); margin: 0; }
   #sheet .parties { display: flex; gap: 16px; margin-bottom: 20px; }
   #sheet .party {
     flex: 1;
@@ -305,7 +333,7 @@
 <body>
 
 <div id="toolbar">
-  <h1>Générateur de contrats freelance</h1>
+  <h1>Générateur de contrats : CGV, prestation, NDA</h1>
   <span id="b2b-badge">Réservé aux relations entre professionnels (B2B)</span>
 </div>
 
@@ -321,8 +349,18 @@
     <!-- ===== Step 1 : Profil ===== -->
     <div class="step-panel" data-panel="1">
       <div class="card">
-        <h2>Mon profil freelance</h2>
+        <h2>Mon profil</h2>
         <p class="hint">Ces informations sont enregistrées dans ce navigateur et réutilisées pour chaque document.</p>
+        <div id="logo-dropzone">
+          <label class="field">Logo (PNG ou JPG, stocké dans ce navigateur)
+            <input type="file" id="p-logo" accept="image/*">
+          </label>
+          <div id="logo-thumb-wrap">
+            <img id="logo-preview-thumb" alt="Logo">
+            <button type="button" id="btn-logo-remove" class="small danger">Retirer le logo</button>
+          </div>
+          <p id="logo-status" class="hint">Glisse-dépose une image ou clique pour choisir un fichier (redimensionné automatiquement, max 300 Ko).</p>
+        </div>
         <label class="field">Nom / raison sociale
           <input type="text" id="p-nom" placeholder="Kevin Tomas — Custom Digital Services">
         </label>
@@ -452,7 +490,8 @@ function saveJSON(key, value) {
 
 const defaultProfile = {
   nom: "", statut: "micro", siren: "", adresse: "",
-  email: "", telephone: "", franchiseTva: false, villeTribunal: ""
+  email: "", telephone: "", franchiseTva: false, villeTribunal: "",
+  logo: "", colorMode: "auto", customColor: "#1d4ed8", autoColor: ""
 };
 const defaultState = {
   step: 1,
@@ -548,6 +587,148 @@ for (const id of ["p-nom", "p-statut", "p-siren", "p-adresse", "p-email", "p-tel
     formToProfile();
     persistProfile();
     renderPreview();
+  });
+}
+
+/* ---------- Step 1 : logo + couleur d'accent ----------
+   Pattern porté de tools/devis-generator/index.html : canvas 64x64, quantification
+   RVB par buckets de 32 pas, pixels transparents/blancs/noirs/gris ignorés pour ne
+   retenir que la couleur dominante saturée du logo. */
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return { r: 29, g: 78, b: 216 };
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function mixWhite(hex, pct) {
+  const { r, g, b } = hexToRgb(hex);
+  const m = (v) => Math.round(v * pct + 255 * (1 - pct));
+  return `rgb(${m(r)}, ${m(g)}, ${m(b)})`;
+}
+function inkOn(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#111827" : "#ffffff";
+}
+function currentAccent() {
+  if (profile.colorMode === "auto" && profile.autoColor) return profile.autoColor;
+  return profile.customColor || "#1d4ed8";
+}
+function extractLogoColor(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const S = 64;
+      const c = document.createElement("canvas");
+      c.width = S; c.height = S;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0, S, S);
+      let data;
+      try { data = ctx.getImageData(0, 0, S, S).data; } catch { resolve(null); return; }
+      const buckets = new Map();
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+        if (a < 128) continue;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        if (mn > 245) continue;      // blanc
+        if (mx < 40) continue;       // noir
+        if (mx - mn < 25) continue;  // gris
+        const key = (r >> 5) * 100 + (g >> 5) * 10 + (b >> 5);
+        const e = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+        e.n++; e.r += r; e.g += g; e.b += b;
+        buckets.set(key, e);
+      }
+      let best = null;
+      for (const e of buckets.values()) if (!best || e.n > best.n) best = e;
+      if (!best) { resolve(null); return; }
+      const h = (v) => Math.round(v).toString(16).padStart(2, "0");
+      resolve(`#${h(best.r / best.n)}${h(best.g / best.n)}${h(best.b / best.n)}`);
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+/* Redimensionne l'image uploadée à une hauteur max raisonnable avant de la stocker
+   en dataURL (localStorage n'est pas fait pour des images pleine résolution). */
+function resizeImageToDataUrl(file, maxHeight) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image illisible."));
+      img.onload = () => {
+        const scale = img.height > maxHeight ? maxHeight / img.height : 1;
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+const LOGO_MAX_HEIGHT = 256;
+const LOGO_MAX_BYTES = 300 * 1024;
+function refreshLogoThumb() {
+  const wrap = $("logo-thumb-wrap");
+  if (profile.logo) {
+    $("logo-preview-thumb").src = profile.logo;
+    wrap.style.display = "flex";
+  } else {
+    wrap.style.display = "none";
+  }
+}
+async function handleLogoFile(file) {
+  const status = $("logo-status");
+  if (!file) return;
+  if (!file.type || !file.type.startsWith("image/")) {
+    status.textContent = "Fichier non reconnu comme image (PNG ou JPG attendu).";
+    return;
+  }
+  status.textContent = "Traitement du logo…";
+  try {
+    const dataUrl = await resizeImageToDataUrl(file, LOGO_MAX_HEIGHT);
+    if (dataUrl.length > LOGO_MAX_BYTES) {
+      status.textContent = "Logo trop volumineux même après redimensionnement (limite 300 Ko) : essaie une image plus simple ou déjà compressée.";
+      return;
+    }
+    profile.logo = dataUrl;
+    profile.autoColor = (await extractLogoColor(dataUrl)) || "";
+    persistProfile();
+    refreshLogoThumb();
+    renderPreview();
+    status.textContent = "Logo mis à jour" + (profile.autoColor ? " ; couleur d'accent proposée automatiquement depuis le logo." : ".");
+  } catch (err) {
+    console.error("[contrats-generator] Échec du traitement du logo :", err);
+    status.textContent = "Impossible de traiter cette image.";
+  }
+}
+$("p-logo").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  handleLogoFile(file);
+});
+$("btn-logo-remove").addEventListener("click", () => {
+  profile.logo = "";
+  profile.autoColor = "";
+  persistProfile();
+  $("p-logo").value = "";
+  refreshLogoThumb();
+  renderPreview();
+  $("logo-status").textContent = "Logo retiré.";
+});
+{
+  const dropzone = $("logo-dropzone");
+  dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    handleLogoFile(file);
   });
 }
 
@@ -773,9 +954,20 @@ function renderPreview() {
       ${(s.paragraphs || []).map((p) => `<p>${escapeHtml(p)}</p>`).join("")}
     </section>`).join("");
   const footerMentions = Array.isArray(out.footerMentions) ? out.footerMentions : [];
+  const accent = currentAccent();
+  sheet.style.setProperty("--cacc", accent);
+  sheet.style.setProperty("--cacc-soft", mixWhite(accent, 0.10));
+  sheet.style.setProperty("--cacc-ink", inkOn(accent));
+  const headerHtml = `
+    <div class="doc-header">
+      ${profile.logo ? `<div class="doc-header-logo"><img src="${profile.logo}" alt="Logo"></div>` : ""}
+      <div class="doc-header-title">
+        <h2 class="doc-title">${escapeHtml(out.title || doc.label)}</h2>
+        ${out.subtitle ? `<p class="doc-subtitle">${escapeHtml(out.subtitle)}</p>` : ""}
+      </div>
+    </div>`;
   sheet.innerHTML = `
-    <h2 class="doc-title">${escapeHtml(out.title || doc.label)}</h2>
-    ${out.subtitle ? `<p class="doc-subtitle">${escapeHtml(out.subtitle)}</p>` : ""}
+    ${headerHtml}
     ${partiesHtml}
     ${sectionsHtml}
     <div class="foot">
@@ -809,10 +1001,25 @@ function docxLinesToParagraphs(text, TextRun, Paragraph, runOpts) {
     new Paragraph({ children: [new TextRun(Object.assign({ text: line }, runOpts || {}))] })
   );
 }
+function dataUrlToUint8Array(dataUrl) {
+  const base64 = dataUrl.split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+function getImageNaturalSize(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth || 160, height: img.naturalHeight || 56 });
+    img.onerror = () => resolve({ width: 160, height: 56 });
+    img.src = dataUrl;
+  });
+}
 async function buildDocxBlob(doc, out) {
   const {
     Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
-    Table, TableRow, TableCell, WidthType, BorderStyle
+    Table, TableRow, TableCell, WidthType, BorderStyle, ImageRun
   } = window.docx;
 
   const grayLight = { style: BorderStyle.SINGLE, size: 4, color: "E5E7EB" };
@@ -855,6 +1062,19 @@ async function buildDocxBlob(doc, out) {
   });
 
   const children = [];
+  if (profile.logo) {
+    const dims = await getImageNaturalSize(profile.logo);
+    const maxWidthPx = 160;
+    const scale = dims.width > maxWidthPx ? maxWidthPx / dims.width : 1;
+    children.push(new Paragraph({
+      spacing: { after: 120 },
+      children: [new ImageRun({
+        data: dataUrlToUint8Array(profile.logo),
+        type: "png",
+        transformation: { width: Math.round(dims.width * scale), height: Math.round(dims.height * scale) }
+      })]
+    }));
+  }
   children.push(new Paragraph({
     heading: HeadingLevel.TITLE,
     children: [new TextRun({ text: out.title || doc.label, bold: true })]
@@ -943,6 +1163,7 @@ $("btn-docx").addEventListener("click", async () => {
 
 /* ---------- Initialisation ---------- */
 profileToForm();
+refreshLogoThumb();
 clientToForm();
 renderStepper();
 renderDocChoice();
