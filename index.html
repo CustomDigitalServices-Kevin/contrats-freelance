@@ -238,8 +238,82 @@
   #export-actions { display: flex; gap: 10px; flex-wrap: wrap; }
   #docx-status { font-size: 12px; color: var(--muted); }
 
-  /* ---------- Sheet (A4 preview) ---------- */
+  /* ---------- Barre apparence (modèle + couleur, toujours visible) ---------- */
   #preview-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  #apparence-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  #tpl-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tpl-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+  .tpl-btn.active {
+    border-color: var(--accent);
+    outline: 2px solid #bfdbfe;
+    background: #eff6ff;
+    font-weight: 600;
+  }
+  .tpl-btn .mini {
+    display: block;
+    width: 26px;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: #fff;
+    position: relative;
+  }
+  .tpl-btn .mini::before { content: ""; position: absolute; left: 3px; right: 3px; }
+  .mini-classique::before { top: 12px; height: 5px; background: var(--accent); }
+  .mini-moderne::before { top: 8px; height: 2px; background: var(--accent); box-shadow: 0 16px 0 var(--accent); }
+  .mini-minimal::before { top: 12px; height: 1.5px; background: #9ca3af; box-shadow: 0 5px 0 #d1d5db, 0 10px 0 #d1d5db; }
+  .mini-elegant::before { top: 6px; height: 1px; background: var(--accent); box-shadow: 0 20px 0 var(--accent); }
+  .mini-corporate::before { top: 4px; height: 3px; background: var(--accent); box-shadow: 0 6px 0 var(--accent); }
+
+  #color-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #color-controls select { width: auto; }
+  #color-swatches { display: flex; align-items: center; gap: 6px; }
+  .swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    padding: 0;
+    cursor: pointer;
+    background: var(--sw);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .swatch:hover { box-shadow: 0 0 0 1px var(--muted); }
+  .swatch.active { box-shadow: 0 0 0 2px var(--sw), 0 0 0 3.5px #fff, 0 0 0 5px var(--sw); }
+  #color-controls input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    background: #fff;
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  #color-controls input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 50%; }
+  #color-controls input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+  #color-controls input[type="color"]::-moz-color-swatch { border: none; border-radius: 50%; }
+
+  /* ---------- Sheet (A4 preview) ---------- */
   #sheet-wrap { display: flex; justify-content: center; }
   #sheet {
     background: #fff;
@@ -295,11 +369,41 @@
   }
   #sheet .foot .disclaimer { font-style: italic; margin-top: 8px; }
 
+  /* ---------- Modèles (mise en forme uniquement, jamais le texte) ---------- */
+  /* Moderne : filet accent net, titres d'articles discrètement soulignés */
+  #sheet.tpl-moderne .doc-header { border-bottom: 3px solid var(--cacc, var(--accent)); }
+  #sheet.tpl-moderne section.article h3 {
+    display: inline-block;
+    border-bottom: 2px solid var(--cacc-soft, #eff6ff);
+    padding-bottom: 2px;
+  }
+
+  /* Élégant : serif sobre, filets fins, espacement des capitales */
+  #sheet.tpl-elegant { font-family: Georgia, "Times New Roman", serif; }
+  #sheet.tpl-elegant .doc-header { border-bottom: 1px solid var(--cacc, var(--accent)); }
+  #sheet.tpl-elegant .doc-title { font-weight: 400; letter-spacing: 3px; }
+  #sheet.tpl-elegant .party { border-radius: 0; }
+  #sheet.tpl-elegant section.article h3 { font-weight: 700; font-style: italic; }
+
+  /* Corporate : double filet, structure formelle, titre en capitales */
+  #sheet.tpl-corporate .doc-header {
+    border-top: 4px solid var(--cacc, var(--accent));
+    border-bottom: 1px solid var(--line);
+    padding-top: 10px;
+  }
+  #sheet.tpl-corporate .doc-title { text-transform: uppercase; letter-spacing: 1px; font-weight: 800; font-size: 19px; }
+  #sheet.tpl-corporate .party { border: 1px solid var(--ink); border-radius: 0; }
+
+  /* Minimal : monochrome, filets fins, aucun aplat de couleur dominant */
+  #sheet.tpl-minimal .doc-header { border-bottom: 1.5px solid var(--ink); }
+  #sheet.tpl-minimal .doc-title { color: var(--ink); font-weight: 600; letter-spacing: 2px; }
+  #sheet.tpl-minimal .party { border: none; border-left: 2px solid var(--ink); border-radius: 0; padding-left: 10px; }
+
   /* ---------- Print ---------- */
   @page { size: A4; margin: 12mm; }
   @media print {
     body { background: #fff; }
-    #toolbar, #editor { display: none !important; }
+    #toolbar, #editor, #apparence-bar { display: none !important; }
     #layout { display: block; padding: 0; }
     #sheet-wrap { display: block; }
     #sheet {
@@ -459,6 +563,32 @@
   </div>
 
   <div id="preview-col">
+    <div id="apparence-bar">
+      <div id="tpl-picker" role="radiogroup" aria-label="Modèle de document">
+        <button type="button" class="tpl-btn" data-tpl="classique"><span class="mini mini-classique"></span>Classique</button>
+        <button type="button" class="tpl-btn" data-tpl="moderne"><span class="mini mini-moderne"></span>Moderne</button>
+        <button type="button" class="tpl-btn" data-tpl="elegant"><span class="mini mini-elegant"></span>Élégant</button>
+        <button type="button" class="tpl-btn" data-tpl="corporate"><span class="mini mini-corporate"></span>Corporate</button>
+        <button type="button" class="tpl-btn" data-tpl="minimal"><span class="mini mini-minimal"></span>Minimal</button>
+      </div>
+      <div id="color-controls">
+        <select id="s-colormode" title="Couleur d'accent">
+          <option value="auto">Couleur : auto (logo)</option>
+          <option value="custom">Couleur : personnalisée</option>
+        </select>
+        <div id="color-swatches" role="radiogroup" aria-label="Couleur personnalisée">
+          <button type="button" class="swatch" data-color="#1d4ed8" style="--sw:#1d4ed8" title="Bleu royal" aria-label="Bleu royal"></button>
+          <button type="button" class="swatch" data-color="#0369a1" style="--sw:#0369a1" title="Bleu ciel" aria-label="Bleu ciel"></button>
+          <button type="button" class="swatch" data-color="#0f766e" style="--sw:#0f766e" title="Sarcelle" aria-label="Sarcelle"></button>
+          <button type="button" class="swatch" data-color="#059669" style="--sw:#059669" title="Émeraude" aria-label="Émeraude"></button>
+          <button type="button" class="swatch" data-color="#b45309" style="--sw:#b45309" title="Ambre" aria-label="Ambre"></button>
+          <button type="button" class="swatch" data-color="#dc2626" style="--sw:#dc2626" title="Rouge" aria-label="Rouge"></button>
+          <button type="button" class="swatch" data-color="#7c3aed" style="--sw:#7c3aed" title="Violet" aria-label="Violet"></button>
+          <button type="button" class="swatch" data-color="#334155" style="--sw:#334155" title="Ardoise" aria-label="Ardoise"></button>
+          <input type="color" id="s-customcolor" value="#1d4ed8" title="Autre couleur…" aria-label="Autre couleur personnalisée">
+        </div>
+      </div>
+    </div>
     <div id="sheet-wrap">
       <div id="sheet"></div>
     </div>
@@ -491,14 +621,17 @@ function saveJSON(key, value) {
 const defaultProfile = {
   nom: "", statut: "micro", siren: "", adresse: "",
   email: "", telephone: "", franchiseTva: false, villeTribunal: "",
-  logo: "", colorMode: "auto", customColor: "#1d4ed8", autoColor: ""
+  logo: "", autoColor: ""
 };
 const defaultState = {
   step: 1,
   documentId: null,
   client: { nom: "", siren: "", adresse: "", representant: "" },
   fields: {},
-  options: {}
+  options: {},
+  templateId: "classique",
+  colorMode: "auto",
+  customColor: "#1d4ed8"
 };
 
 let profile = Object.assign({}, defaultProfile, loadJSON(LS_PROFILE, {}));
@@ -610,8 +743,8 @@ function inkOn(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#111827" : "#ffffff";
 }
 function currentAccent() {
-  if (profile.colorMode === "auto" && profile.autoColor) return profile.autoColor;
-  return profile.customColor || "#1d4ed8";
+  if (state.colorMode === "auto" && profile.autoColor) return profile.autoColor;
+  return state.customColor || "#1d4ed8";
 }
 function extractLogoColor(src) {
   return new Promise((resolve) => {
@@ -731,6 +864,60 @@ $("btn-logo-remove").addEventListener("click", () => {
     handleLogoFile(file);
   });
 }
+
+/* ---------- Apparence : sélecteur de modèle + palette de couleurs ----------
+   Pattern porté de tools/devis-generator/index.html (refreshTplPicker /
+   refreshColorSwatches). Le modèle ne change QUE la mise en forme CSS
+   (classe tpl-*) : le contenu juridique généré par clauses.js est identique
+   quel que soit le modèle choisi. */
+function refreshTplPicker() {
+  const current = state.templateId || "classique";
+  for (const btn of document.querySelectorAll("#tpl-picker .tpl-btn")) {
+    btn.classList.toggle("active", btn.dataset.tpl === current);
+    btn.setAttribute("aria-checked", btn.dataset.tpl === current ? "true" : "false");
+  }
+}
+function refreshColorSwatches() {
+  const current = (state.customColor || "#1d4ed8").toLowerCase();
+  for (const btn of document.querySelectorAll("#color-swatches .swatch")) {
+    const isActive = btn.dataset.color.toLowerCase() === current;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-checked", isActive ? "true" : "false");
+  }
+}
+$("tpl-picker").addEventListener("click", (e) => {
+  const btn = e.target.closest(".tpl-btn");
+  if (!btn) return;
+  state.templateId = btn.dataset.tpl;
+  persistState();
+  refreshTplPicker();
+  renderPreview();
+});
+$("s-colormode").addEventListener("input", () => {
+  state.colorMode = $("s-colormode").value;
+  persistState();
+  refreshColorSwatches();
+  renderPreview();
+});
+$("s-customcolor").addEventListener("input", () => {
+  state.colorMode = "custom";
+  state.customColor = $("s-customcolor").value;
+  $("s-colormode").value = "custom";
+  persistState();
+  refreshColorSwatches();
+  renderPreview();
+});
+$("color-swatches").addEventListener("click", (e) => {
+  const btn = e.target.closest(".swatch");
+  if (!btn) return;
+  state.colorMode = "custom";
+  state.customColor = btn.dataset.color;
+  $("s-colormode").value = "custom";
+  $("s-customcolor").value = btn.dataset.color;
+  persistState();
+  refreshColorSwatches();
+  renderPreview();
+});
 
 /* ---------- Step 2 : choix du document ---------- */
 function renderDocChoice() {
@@ -954,6 +1141,7 @@ function renderPreview() {
       ${(s.paragraphs || []).map((p) => `<p>${escapeHtml(p)}</p>`).join("")}
     </section>`).join("");
   const footerMentions = Array.isArray(out.footerMentions) ? out.footerMentions : [];
+  sheet.className = "tpl-" + (state.templateId || "classique");
   const accent = currentAccent();
   sheet.style.setProperty("--cacc", accent);
   sheet.style.setProperty("--cacc-soft", mixWhite(accent, 0.10));
@@ -1164,6 +1352,10 @@ $("btn-docx").addEventListener("click", async () => {
 /* ---------- Initialisation ---------- */
 profileToForm();
 refreshLogoThumb();
+$("s-colormode").value = state.colorMode || "auto";
+$("s-customcolor").value = state.customColor || "#1d4ed8";
+refreshTplPicker();
+refreshColorSwatches();
 clientToForm();
 renderStepper();
 renderDocChoice();
