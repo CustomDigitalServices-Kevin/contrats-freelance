@@ -96,9 +96,22 @@ Un navigateur moderne (Chrome, Edge, Firefox ou Safari récent). Rien d'autre à
 
 Le bouton **Télécharger DOCX** s'appuie sur la librairie
 [dolanmiu/docx](https://github.com/dolanmiu/docx) (MIT), vendorée localement dans
-`docx.min.js`. Tant que ce fichier n'est pas présent dans ton dossier, le bouton affiche
-un message clair au lieu de générer un faux fichier ; l'export DOCX complet arrive dans
-une prochaine étape du build de cet outil.
+`docx.min.js` (aucun CDN, zéro requête réseau au runtime). Si ce fichier venait à
+manquer, le bouton affiche un message clair au lieu de générer un faux fichier.
+
+- **Version vendorée** : `docx` v9.7.1 (registre npm officiel, `npm view docx version`
+  au 2026-07-18).
+- **Origine du fichier** : le paquet npm ne publie aucun bundle déjà minifié ; le seul
+  fichier navigateur autonome est `dist/index.iife.js` (assignation directe
+  `var docx = (function(...) {...})(...)`, confirmant le global `window.docx`), fourni
+  non minifié (~1,1 Mo). `docx.min.js` est ce même fichier passé une fois dans
+  [esbuild](https://esbuild.github.io/) (`--minify`), sans modification de code.
+- **Taille vendorée** : `docx.min.js` fait **402 Ko** (411 835 octets).
+- Le document `.docx` généré suit exactement le même modèle de données que l'aperçu
+  HTML (titre, sous-titre, articles avec titres en gras/styles de titre Word, paragraphes
+  justifiés, mentions de bas de page + disclaimer en fin de document).
+- Nom de fichier téléchargé : `<document>-<raison-sociale-client>-<date>.docx`
+  (ex. `cgv-client-test-sarl-2026-07-18.docx`).
 
 ## Licence
 
