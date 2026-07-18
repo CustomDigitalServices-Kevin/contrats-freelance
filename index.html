@@ -6,16 +6,20 @@
 <title>Générateur de contrats : CGV, prestation, NDA</title>
 <style>
   :root {
-    --ink: #1a1d24;
-    --muted: #6b7280;
-    --line: #e5e7eb;
-    --accent: #1d4ed8;
-    --bg: #f3f4f6;
+    --ink: #1e2433;
+    --muted: #68718a;
+    --line: #e3e7f1;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --accent-ring: #d7d9ff;
+    --accent-deep: #4338ca;
+    --bg: #eef1f7;
     --card: #ffffff;
     --danger: #b91c1c;
-    --warn-bg: #fffbeb;
-    --warn-border: #f59e0b;
-    --warn-ink: #92400e;
+    --warn-bg: #fff4e5;
+    --warn-border: #fcd9a8;
+    --warn-ink: #b45309;
+    --shadow-card: 0 1px 2px rgba(30,36,51,.05), 0 8px 24px -18px rgba(30,36,51,.25);
   }
   * { box-sizing: border-box; }
   body {
@@ -32,20 +36,34 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    padding: 10px 16px;
+    padding: 12px 20px;
     background: var(--card);
-    border-bottom: 1px solid var(--line);
+    border-bottom: none;
+    box-shadow: 0 1px 3px rgba(30,36,51,.08);
     position: sticky;
     top: 0;
     z-index: 10;
   }
-  #toolbar h1 { font-size: 15px; margin: 0 12px 0 0; font-weight: 600; }
+  #toolbar h1 { font-size: 16px; margin: 0 12px 0 0; font-weight: 650; }
+  #toolbar h1::before {
+    content: "§";
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    margin-right: 9px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff;
+    font-size: 14px;
+    vertical-align: -6px;
+  }
   #b2b-badge {
     font-size: 11.5px;
     font-weight: 600;
     color: var(--accent);
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-ring);
     border-radius: 999px;
     padding: 3px 10px;
   }
@@ -64,23 +82,28 @@
 
   #stepper {
     display: flex;
+    gap: 4px;
     background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    border: none;
+    border-radius: 999px;
+    padding: 4px;
     overflow: hidden;
+    box-shadow: var(--shadow-card);
   }
   .step-tab {
     flex: 1;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 8px 12px;
     font-size: 12.5px;
     font-weight: 600;
     color: var(--muted);
     cursor: pointer;
-    border-right: 1px solid var(--line);
-    background: #fafafa;
+    border-right: none;
+    border-radius: 999px;
+    background: transparent;
   }
   .step-tab:last-child { border-right: none; }
   .step-tab .num {
@@ -90,27 +113,28 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: var(--line);
-    color: var(--ink);
+    background: var(--bg);
+    color: var(--muted);
     font-size: 11px;
   }
-  .step-tab.active { background: #eff6ff; color: var(--accent); }
-  .step-tab.active .num { background: var(--accent); color: #fff; }
-  .step-tab.done .num { background: #059669; color: #fff; }
+  .step-tab.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,.35); }
+  .step-tab.active .num { background: rgba(255,255,255,.22); color: #fff; }
+  .step-tab.done .num { background: #16a34a; color: #fff; }
 
   .step-panel { display: none; }
   .step-panel.active { display: block; }
 
   .card {
     background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 14px;
+    border: none;
+    border-radius: 14px;
+    padding: 16px 18px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    box-shadow: var(--shadow-card);
   }
-  .card h2 { font-size: 13.5px; margin: 0; font-weight: 600; }
+  .card h2 { font-size: 13.5px; margin: 0; font-weight: 650; }
   .card .hint { font-size: 12px; color: var(--muted); margin: -4px 0 2px; }
 
   label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -118,30 +142,37 @@
   .row > label.field { flex: 1; }
   input[type="text"], input[type="date"], input[type="number"], input[type="email"], input[type="tel"], textarea, select {
     font: inherit;
-    padding: 7px 9px;
+    padding: 8px 10px;
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 9px;
     background: #fff;
     color: var(--ink);
     width: 100%;
   }
   textarea { resize: vertical; min-height: 54px; }
-  input:focus, textarea:focus, select:focus { outline: 2px solid #bfdbfe; border-color: var(--accent); }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent-ring); border-color: var(--accent); }
 
   .check { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink); }
   .check input { width: auto; margin-top: 3px; }
 
   button {
     font: inherit;
-    padding: 7px 14px;
+    font-weight: 600;
+    padding: 8px 16px;
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 10px;
     background: #fff;
+    color: var(--ink);
     cursor: pointer;
   }
-  button:hover { background: #f9fafb; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button.primary:hover { background: #1e40af; }
+  button:hover { background: var(--accent-soft); border-color: var(--accent-ring); }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 14px -6px rgba(79,70,229,.6);
+  }
+  button.primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
   button:disabled { opacity: .5; cursor: not-allowed; }
   button.small { padding: 3px 8px; font-size: 12px; }
   button.danger { color: var(--danger); }
@@ -156,7 +187,7 @@
     gap: 8px;
     transition: border-color .15s, background .15s;
   }
-  #logo-dropzone.dragover { border-color: var(--accent); background: #eff6ff; }
+  #logo-dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
   #logo-thumb-wrap { display: none; align-items: center; gap: 10px; }
   #logo-preview-thumb { max-height: 48px; max-width: 160px; display: block; }
   #logo-status { font-size: 11.5px; color: var(--muted); margin: 0; }
@@ -170,22 +201,23 @@
     flex-direction: column;
     gap: 3px;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 10px 12px;
     cursor: pointer;
   }
-  .doc-card.active { border-color: var(--accent); background: #eff6ff; }
+  .doc-card.active { border-color: var(--accent); background: var(--accent-soft); }
   .doc-card .label { font-weight: 600; font-size: 13.5px; }
   .doc-card .description { font-size: 12px; color: var(--muted); }
 
   /* Options (step 3) */
   .option-row {
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    background: #fff;
   }
   .option-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .option-head .label { font-weight: 600; font-size: 13px; }
@@ -272,9 +304,10 @@
     gap: 12px;
     flex-wrap: wrap;
     background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 8px 12px;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 14px;
+    box-shadow: var(--shadow-card);
   }
   #tpl-picker { display: flex; gap: 8px; flex-wrap: wrap; }
   .tpl-btn {
@@ -287,8 +320,8 @@
   }
   .tpl-btn.active {
     border-color: var(--accent);
-    outline: 2px solid #bfdbfe;
-    background: #eff6ff;
+    outline: 2px solid var(--accent-ring);
+    background: var(--accent-soft);
     font-weight: 600;
   }
   .tpl-btn .mini {
@@ -345,7 +378,8 @@
     width: 210mm;
     min-height: 296mm;
     padding: 18mm 18mm 16mm;
-    box-shadow: 0 2px 14px rgba(0,0,0,.12);
+    border-radius: 4px;
+    box-shadow: 0 20px 50px -20px rgba(30,36,51,.35);
     font-size: 13px;
     line-height: 1.5;
     display: flex;
@@ -436,6 +470,7 @@
       min-height: 0;
       padding: 0;
       box-shadow: none;
+      border-radius: 0;
     }
     #sheet, #sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     /* Une section d'article ne doit jamais être coupée entre deux pages avec son
