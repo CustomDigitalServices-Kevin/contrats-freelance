@@ -788,18 +788,157 @@ function renderPreview() {
 $("btn-print").addEventListener("click", () => window.print());
 
 /* ---------- Export : DOCX ----------
-   Le fichier docx.min.js (vendoré, lib dolanmiu/docx) et la génération du .docx
-   arrivent à la tâche suivante du build. Ici, on détecte proprement son absence
-   plutôt que de simuler un export : pas de stub silencieux. */
-$("btn-docx").addEventListener("click", () => {
+   Génère un .docx via la lib dolanmiu/docx (window.docx, vendorée localement
+   dans docx.min.js). Le document DOCX suit exactement le même modèle de
+   données que l'aperçu HTML (title/subtitle/sections/footerMentions +
+   disclaimer) pour garantir la cohérence entre les deux exports. */
+function slugify(s) {
+  return String(s || "")
+    .normalize("NFD").replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "document";
+}
+function todayISOFilename() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function docxLinesToParagraphs(text, TextRun, Paragraph, runOpts) {
+  return String(text || "").split("\n").map((line) =>
+    new Paragraph({ children: [new TextRun(Object.assign({ text: line }, runOpts || {}))] })
+  );
+}
+async function buildDocxBlob(doc, out) {
+  const {
+    Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
+    Table, TableRow, TableCell, WidthType, BorderStyle
+  } = window.docx;
+
+  const grayLight = { style: BorderStyle.SINGLE, size: 4, color: "E5E7EB" };
+  const cellBorders = { top: grayLight, bottom: grayLight, left: grayLight, right: grayLight };
+
+  function partyCell(label, name, lines) {
+    const children = [
+      new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 16, color: "6B7280" })] }),
+      new Paragraph({ children: [new TextRun({ text: name || "", bold: true })] })
+    ];
+    for (const line of lines) {
+      if (!line) continue;
+      children.push(...docxLinesToParagraphs(line, TextRun, Paragraph));
+    }
+    return new TableCell({
+      width: { size: 50, type: WidthType.PERCENTAGE },
+      margins: { top: 120, bottom: 120, left: 150, right: 150 },
+      borders: cellBorders,
+      children
+    });
+  }
+
+  const partiesTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          partyCell("PRESTATAIRE", profile.nom, [
+            profile.adresse,
+            profile.siren ? "SIREN : " + profile.siren : null
+          ]),
+          partyCell("CLIENT", state.client.nom, [
+            state.client.adresse,
+            state.client.siren ? "SIREN : " + state.client.siren : null,
+            state.client.representant ? "Représenté par : " + state.client.representant : null
+          ])
+        ]
+      })
+    ]
+  });
+
+  const children = [];
+  children.push(new Paragraph({
+    heading: HeadingLevel.TITLE,
+    children: [new TextRun({ text: out.title || doc.label, bold: true })]
+  }));
+  if (out.subtitle) {
+    children.push(new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: out.subtitle, italics: true, color: "6B7280" })]
+    }));
+  }
+  children.push(partiesTable);
+  children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+
+  for (const section of out.sections) {
+    children.push(new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 200, after: 100 },
+      children: [new TextRun({ text: section.heading, bold: true })]
+    }));
+    for (const paragraph of section.paragraphs || []) {
+      children.push(new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 120 },
+        children: [new TextRun({ text: paragraph })]
+      }));
+    }
+  }
+
+  const footerMentions = Array.isArray(out.footerMentions) ? out.footerMentions : [];
+  if (footerMentions.length) {
+    children.push(new Paragraph({
+      spacing: { before: 300, after: 80 },
+      border: { top: { style: BorderStyle.SINGLE, size: 4, color: "E5E7EB" } },
+      children: [new TextRun({ text: footerMentions.join(" · "), size: 16, color: "6B7280" })]
+    }));
+  }
+  children.push(new Paragraph({
+    children: [new TextRun({ text: window.CONTRATS_TEMPLATES.disclaimer, italics: true, size: 16, color: "6B7280" })]
+  }));
+
+  const wordDoc = new Document({ sections: [{ properties: {}, children }] });
+  return Packer.toBlob(wordDoc);
+}
+
+$("btn-docx").addEventListener("click", async () => {
   const status = $("docx-status");
+  const button = $("btn-docx");
   if (typeof window.docx === "undefined") {
     status.textContent = "Export DOCX disponible à l'étape suivante du build (docx.min.js non chargé).";
     return;
   }
+  const doc = currentDocument();
+  if (!doc) {
+    status.textContent = "Choisis d'abord un type de document à l'étape 2.";
+    return;
+  }
+  let out;
+  try {
+    out = doc.build(buildDataObject());
+  } catch (err) {
+    console.error("[contrats-generator] build() a échoué pour l'export DOCX :", err);
+    status.textContent = "Impossible de générer le DOCX : le modèle de document a échoué.";
+    return;
+  }
+  button.disabled = true;
   status.textContent = "Génération du DOCX en cours…";
-  // L'appel réel à l'API docx (window.docx) sera branché ici quand docx.min.js
-  // sera livré : ce bouton ne doit alors nécessiter aucun changement de câblage.
+  try {
+    const blob = await buildDocxBlob(doc, out);
+    const filename = `${doc.id}-${slugify(state.client.nom || profile.nom)}-${todayISOFilename()}.docx`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    status.textContent = "DOCX téléchargé : " + filename;
+  } catch (err) {
+    console.error("[contrats-generator] Échec de la génération DOCX :", err);
+    status.textContent = "Échec de la génération du DOCX (voir la console pour le détail).";
+  } finally {
+    button.disabled = false;
+  }
 });
 
 /* ---------- Initialisation ---------- */
