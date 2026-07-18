@@ -82,6 +82,46 @@ Paragraphs are plain text strings (no HTML). Article numbering is included in `h
 The NDA template declares a `reciproque` toggle option (default false = unilatéral) and adapts
 parties wording in `build()` accordingly.
 
+## V2 additions (fixed by the lead on 2026-07-18, tasks 16-21)
+
+### Clause catalog (add/remove per clause)
+
+Each document template ADDS a `clauses` array declaring every section of the document:
+
+```js
+clauses: [
+  { id: "penalites", label: "Pénalités de retard et indemnité de recouvrement",
+    core: true,               // core:true => ALWAYS included, no toggle shown (noyau légal, disclaimer, parties, objet...)
+    default: true,            // for core:false only : included by default or not
+    risky: false, warning: null,
+    help: "1 phrase FR expliquant la clause ou null" }
+]
+```
+
+Rules:
+- `core: true` for: parties/préambule, objet, prix, conditions de règlement, pénalités + indemnité
+  40 EUR (L441-10/D441-5), droit applicable/juridiction, and every mention the RAG lists as
+  obligatoire. These NEVER get a toggle in the UI.
+- Existing v1 toggle options that enable/disable whole sections (plafondResponsabilite,
+  sousTraitance, nonSollicitation, exclusivite, horairesImposes, reciproque...) MIGRATE into
+  `clauses` entries (same ids, same defaults, same risky/warning). `options` keeps only PARAMETERS
+  (delaiPaiement, tauxPenalites, dureeConfidentialite, preavisResiliation, modaliteFacturation...).
+- `build(data)` input gains:
+  - `data.clauses`: `{ <clauseId>: bool }` (missing id => the clause's default). Core clauses are
+    rendered regardless of this map.
+  - `data.customClauses`: `[ { title: "...", text: "..." } ]` (may be empty). build() inserts them,
+    in order, as numbered sections immediately BEFORE the final "Droit applicable et juridiction"
+    section; `text` is split on blank lines into paragraphs.
+- `build(data)` output sections gain `clauseId` (the catalog id, or `"custom-<index>"`); numbering
+  stays continuous after removals/insertions.
+- Backward compat: if `data.clauses`/`data.customClauses` are undefined (v1 stored state), build()
+  behaves exactly like v1 (defaults applied). index.html migrates old localStorage state gracefully.
+
+### Appearance (UI-only, NOT clauses.js concern)
+
+Logo (dataURL), visual template id and accent color live in index.html + localStorage and affect
+preview/print/DOCX rendering only. clauses.js stays pure content: no style, no logo, no template.
+
 ## Files ownership
 
 - `clauses.js` : teammate legal-content ONLY. No git commands from this teammate.
