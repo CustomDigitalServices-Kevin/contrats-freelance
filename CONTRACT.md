@@ -126,7 +126,11 @@ Rules:
 - `build(data)` output sections gain `clauseId` (the catalog id, or `"custom-<index>"`); numbering
   stays continuous after removals/insertions.
 - Backward compat: if `data.clauses`/`data.customClauses` are undefined (v1 stored state), build()
-  behaves exactly like v1 (defaults applied). index.html migrates old localStorage state gracefully.
+  applies every clause's default. MIGRATED v1 clauses keep their v1 defaults, so no v1 behaviour
+  changes; NEW clauses may have `default: true` when they are legally neutral and beneficial
+  (lead arbitration 2026-07-18: garantie, integraliteDivisibilite, absenceObligationContracter,
+  notificationDivulgationForcee), so a v1 user regenerating a document may see these new sections.
+  index.html migrates old localStorage state gracefully.
 
 ### Appearance (UI-only, NOT clauses.js concern)
 
