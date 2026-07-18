@@ -5,13 +5,18 @@ confidentialité) conformes au droit français, pour les relations **entre profe
 (B2B)**. Un seul fichier HTML, **100 % local, hors-ligne, sans compte et sans envoi de
 données sur Internet**.
 
-> Renseigne ton profil freelance une seule fois, choisis un document, personnalise les
+> Renseigne ton profil une seule fois, choisis un document, personnalise les
 > coordonnées du client et les clauses, imprime en PDF ou télécharge en DOCX.
+
+Convient à toute entreprise prestataire de services B2B, pas uniquement aux freelances :
+micro-entrepreneur, EI, EURL, SASU ou toute autre société qui facture des prestations à
+d'autres professionnels peut l'utiliser.
 
 ## En 3 clics
 
 1. **Mon profil** : nom / raison sociale, statut, SIREN, adresse, franchise en base de
-   TVA, ville du tribunal compétent. Enregistré dans le navigateur, à remplir une fois.
+   TVA, ville du tribunal compétent, logo (optionnel, avec couleur d'accent extraite
+   automatiquement). Enregistré dans le navigateur, à remplir une fois.
 2. **Document + client** : choisis CGV, contrat de prestation ou NDA, puis renseigne les
    coordonnées du client et les informations propres au document (objet, durée, prix…).
 3. **Clauses** : ajuste les options (facturation, sous-traitance, non-sollicitation,
