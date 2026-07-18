@@ -233,6 +233,41 @@
     border-radius: 999px;
     padding: 1px 8px;
   }
+  .edited-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-ring);
+    border-radius: 999px;
+    padding: 1px 8px;
+  }
+  .option-head .label { flex: 1; }
+  .option-head .edit-clause { flex: none; }
+  .clause-core-item .edit-clause { margin-left: auto; }
+  .clause-editor {
+    border: 1px solid var(--accent-ring);
+    background: var(--accent-soft);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .clause-editor textarea { min-height: 140px; background: #fff; }
+  .clause-editor .editor-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .clause-editor .hint { margin: 0; }
+  .clause-editor .core-warning {
+    font-size: 12px;
+    color: var(--warn-ink);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
   .option-warning {
     display: none;
     font-size: 12px;
@@ -711,6 +746,7 @@ const defaultState = {
   fields: {},
   options: {},
   clauses: {},
+  clauseOverrides: {},
   customClauses: [],
   templateId: "classique",
   colorMode: "auto",
@@ -723,6 +759,7 @@ state.client = Object.assign({}, defaultState.client, state.client || {});
 state.fields = state.fields || {};
 state.options = state.options || {};
 state.clauses = state.clauses || {};
+state.clauseOverrides = state.clauseOverrides || {};
 state.customClauses = state.customClauses || [];
 
 /* ---------- Helpers ---------- */
@@ -1213,12 +1250,17 @@ function isClauseChecked(c) {
   }
   return c.default === true;
 }
+function hasOverride(clauseId) {
+  const txt = (state.clauseOverrides || {})[overrideKey(clauseId)];
+  return typeof txt === "string" && txt.trim() !== "";
+}
 function clauseRowHtml(c) {
   const val = isClauseChecked(c);
   return `
     <div class="option-row" data-clause-row="${c.id}">
       <div class="option-head">
-        <span class="label">${escapeHtml(c.label)}${c.risky ? ' <span class="risky-badge">Clause à risque</span>' : ""}</span>
+        <span class="label">${escapeHtml(c.label)}${c.risky ? ' <span class="risky-badge">Clause à risque</span>' : ""}${hasOverride(c.id) ? ' <span class="edited-badge">Modifiée</span>' : ""}</span>
+        <button type="button" class="small edit-clause" data-clause-edit="${c.id}" ${val ? "" : "disabled title=\"Active d'abord la clause pour modifier son texte\""}>Modifier</button>
         <label class="switch">
           <input type="checkbox" id="clause-${c.id}" data-clause="${c.id}" ${val ? "checked" : ""}>
           <span class="slider"></span>
@@ -1241,6 +1283,11 @@ function renderClauseGroup(containerId, list) {
       persistState();
       const warnEl = document.querySelector(`[data-clause-warning="${c.id}"]`);
       if (warnEl) warnEl.classList.toggle("show", e.target.checked);
+      const editBtn = document.querySelector(`[data-clause-edit="${c.id}"]`);
+      if (editBtn) {
+        editBtn.disabled = !e.target.checked;
+        editBtn.title = e.target.checked ? "" : "Active d'abord la clause pour modifier son texte";
+      }
       renderPreview();
     });
   }
@@ -1257,10 +1304,73 @@ function renderClauses() {
   const included = doc.clauses.filter((c) => !c.core && c.default === true);
   const optional = doc.clauses.filter((c) => !c.core && c.default === false);
   $("doc-clauses-core").innerHTML = core.length
-    ? core.map((c) => `<div class="clause-core-item">${escapeHtml(c.label)}<span class="lock">— incluse</span></div>`).join("")
+    ? core.map((c) => `<div class="clause-core-item" data-clause-row="${c.id}">${escapeHtml(c.label)}<span class="lock">— incluse</span>${hasOverride(c.id) ? ' <span class="edited-badge">Modifiée</span>' : ""}<button type="button" class="small edit-clause" data-clause-edit="${c.id}">Modifier</button></div>`).join("")
     : '<p class="hint">Aucune.</p>';
   renderClauseGroup("doc-clauses-included", included);
   renderClauseGroup("doc-clauses-optional", optional);
+  wireClauseEditors();
+}
+
+/* ---------- Édition du texte d'une clause existante ----------
+   Ouvre un éditeur inline sous la ligne de la clause : textarea préremplie
+   avec le texte actuellement généré (ou l'override existant), Appliquer
+   enregistre l'override, Rétablir supprime l'override et revient au texte
+   du catalogue. Le titre et la numérotation restent gérés par clauses.js. */
+function closeClauseEditors() {
+  document.querySelectorAll(".clause-editor").forEach((el) => el.remove());
+}
+function findClauseInCatalog(clauseId) {
+  const doc = currentDocument();
+  if (!doc || !Array.isArray(doc.clauses)) return null;
+  return doc.clauses.find((c) => c.id === clauseId) || null;
+}
+function openClauseEditor(row, clauseId) {
+  closeClauseEditors();
+  const cat = findClauseInCatalog(clauseId);
+  const key = overrideKey(clauseId);
+  const current = (state.clauseOverrides || {})[key];
+  const original = originalClauseText(clauseId);
+  const editor = document.createElement("div");
+  editor.className = "clause-editor";
+  editor.innerHTML = `
+    ${cat && cat.core ? '<div class="core-warning">Cette clause fait partie du noyau légal (mentions obligatoires). En modifiant son texte, vous devenez responsable du maintien de ces mentions.</div>' : ""}
+    <textarea data-editor-text placeholder="Texte de la clause (une ligne vide sépare les paragraphes)"></textarea>
+    <p class="hint">Contenu modifié par vous, non vérifié par l'outil. Le titre et le numéro d'article restent gérés automatiquement.</p>
+    <div class="editor-actions">
+      <button type="button" class="primary" data-editor-apply>Appliquer</button>
+      <button type="button" data-editor-reset ${typeof current === "string" ? "" : "disabled"}>Rétablir le texte d'origine</button>
+      <button type="button" data-editor-close>Fermer</button>
+    </div>`;
+  editor.querySelector("[data-editor-text]").value =
+    typeof current === "string" && current.trim() !== "" ? current : original;
+  editor.querySelector("[data-editor-apply]").addEventListener("click", () => {
+    const txt = editor.querySelector("[data-editor-text]").value;
+    if (txt.trim() === "" || txt.trim() === original.trim()) {
+      delete state.clauseOverrides[key];
+    } else {
+      state.clauseOverrides[key] = txt;
+    }
+    persistState();
+    renderClauses();
+    renderPreview();
+  });
+  editor.querySelector("[data-editor-reset]").addEventListener("click", () => {
+    delete state.clauseOverrides[key];
+    persistState();
+    renderClauses();
+    renderPreview();
+  });
+  editor.querySelector("[data-editor-close]").addEventListener("click", () => editor.remove());
+  row.insertAdjacentElement("afterend", editor);
+}
+function wireClauseEditors() {
+  document.querySelectorAll("[data-clause-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const clauseId = btn.getAttribute("data-clause-edit");
+      const row = btn.closest("[data-clause-row]");
+      openClauseEditor(row, clauseId);
+    });
+  });
 }
 
 /* ---------- Step 3 : clauses personnalisées (custom) ---------- */
@@ -1338,6 +1448,48 @@ function buildDataObject() {
     today: todayFR()
   };
 }
+/* ---------- Overrides de clauses (texte modifié par l'utilisateur) ----------
+   Les overrides sont appliqués APRÈS build() sur la sortie, par clauseId,
+   sans jamais toucher clauses.js : la clé est préfixée par le documentId
+   ("cgv:penalites") car un même id de clause existe dans plusieurs
+   documents avec des textes différents. Un override remplace uniquement
+   les paragraphes de la section (le titre et la numérotation restent
+   gérés par le catalogue). */
+function overrideKey(clauseId) { return state.documentId + ":" + clauseId; }
+function splitParagraphs(text) {
+  return String(text).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+}
+function applyClauseOverrides(out) {
+  const ov = state.clauseOverrides || {};
+  let edited = false;
+  for (const s of out.sections) {
+    if (!s.clauseId || String(s.clauseId).startsWith("custom-")) continue;
+    const txt = ov[overrideKey(s.clauseId)];
+    if (typeof txt === "string" && txt.trim() !== "") {
+      s.paragraphs = splitParagraphs(txt);
+      edited = true;
+    }
+  }
+  if (edited && Array.isArray(out.footerMentions)) {
+    out.footerMentions.push("Certaines clauses ont été modifiées par l'utilisateur.");
+  }
+  return out;
+}
+function buildDocumentOutput(doc) {
+  return applyClauseOverrides(doc.build(buildDataObject()));
+}
+function originalClauseText(clauseId) {
+  const doc = currentDocument();
+  if (!doc) return "";
+  try {
+    const out = doc.build(buildDataObject());
+    const s = out.sections.find((x) => x.clauseId === clauseId);
+    return s ? s.paragraphs.join("\n\n") : "";
+  } catch (_err) {
+    return "";
+  }
+}
+
 function renderPreview() {
   const sheet = $("sheet");
   if (!templatesReady()) {
@@ -1351,7 +1503,7 @@ function renderPreview() {
   }
   let out;
   try {
-    out = doc.build(buildDataObject());
+    out = buildDocumentOutput(doc);
   } catch (err) {
     console.error("[contrats-generator] build() a échoué :", err);
     sheet.innerHTML = '<div class="empty-msg">Modèle de document introuvable ou invalide dans clauses.js.</div>';
@@ -1563,7 +1715,7 @@ $("btn-docx").addEventListener("click", async () => {
   }
   let out;
   try {
-    out = doc.build(buildDataObject());
+    out = buildDocumentOutput(doc);
   } catch (err) {
     console.error("[contrats-generator] build() a échoué pour l'export DOCX :", err);
     status.textContent = "Impossible de générer le DOCX : le modèle de document a échoué.";
