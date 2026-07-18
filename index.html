@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Générateur de contrats freelance</title>
+<style>
+  :root {
+    --ink: #1a1d24;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #1d4ed8;
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --danger: #b91c1c;
+    --warn-bg: #fffbeb;
+    --warn-border: #f59e0b;
+    --warn-ink: #92400e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+  }
+
+  /* ---------- Layout ---------- */
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  #toolbar h1 { font-size: 15px; margin: 0 12px 0 0; font-weight: 600; }
+  #b2b-badge {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--accent);
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+
+  #layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 480px) 1fr;
+    gap: 20px;
+    padding: 20px;
+    align-items: start;
+  }
+  @media (max-width: 1000px) { #layout { grid-template-columns: 1fr; } }
+
+  /* ---------- Wizard / stepper ---------- */
+  #editor { display: flex; flex-direction: column; gap: 14px; }
+
+  #stepper {
+    display: flex;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .step-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-right: 1px solid var(--line);
+    background: #fafafa;
+  }
+  .step-tab:last-child { border-right: none; }
+  .step-tab .num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--line);
+    color: var(--ink);
+    font-size: 11px;
+  }
+  .step-tab.active { background: #eff6ff; color: var(--accent); }
+  .step-tab.active .num { background: var(--accent); color: #fff; }
+  .step-tab.done .num { background: #059669; color: #fff; }
+
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .card h2 { font-size: 13.5px; margin: 0; font-weight: 600; }
+  .card .hint { font-size: 12px; color: var(--muted); margin: -4px 0 2px; }
+
+  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .row { display: flex; gap: 10px; }
+  .row > label.field { flex: 1; }
+  input[type="text"], input[type="date"], input[type="number"], input[type="email"], input[type="tel"], textarea, select {
+    font: inherit;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ink);
+    width: 100%;
+  }
+  textarea { resize: vertical; min-height: 54px; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid #bfdbfe; border-color: var(--accent); }
+
+  .check { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink); }
+  .check input { width: auto; margin-top: 3px; }
+
+  button {
+    font: inherit;
+    padding: 7px 14px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: #f9fafb; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: #1e40af; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  #wizard-nav { display: flex; justify-content: space-between; gap: 10px; }
+
+  /* Document choice cards (step 2) */
+  #doc-choice { display: flex; flex-direction: column; gap: 8px; }
+  .doc-card {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+  .doc-card.active { border-color: var(--accent); background: #eff6ff; }
+  .doc-card .label { font-weight: 600; font-size: 13.5px; }
+  .doc-card .description { font-size: 12px; color: var(--muted); }
+
+  /* Options (step 3) */
+  .option-row {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .option-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .option-head .label { font-weight: 600; font-size: 13px; }
+  .option-help { font-size: 11.5px; color: var(--muted); }
+  .risky-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--warn-ink);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 999px;
+    padding: 1px 8px;
+  }
+  .option-warning {
+    display: none;
+    font-size: 12px;
+    color: var(--warn-ink);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .option-warning.show { display: block; }
+
+  /* Toggle switch */
+  .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider {
+    position: absolute; inset: 0; background: var(--line); border-radius: 999px; cursor: pointer; transition: .15s;
+  }
+  .switch .slider::before {
+    content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: .15s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(16px); }
+
+  /* Disclaimer */
+  #disclaimer-box {
+    font-size: 12px;
+    color: #374151;
+    background: #f9fafb;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    line-height: 1.5;
+  }
+  #export-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  #docx-status { font-size: 12px; color: var(--muted); }
+
+  /* ---------- Sheet (A4 preview) ---------- */
+  #preview-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  #sheet-wrap { display: flex; justify-content: center; }
+  #sheet {
+    background: #fff;
+    width: 210mm;
+    min-height: 296mm;
+    padding: 18mm 18mm 16mm;
+    box-shadow: 0 2px 14px rgba(0,0,0,.12);
+    font-size: 13px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+  }
+  #sheet h2.doc-title { font-size: 21px; margin: 0 0 2px; font-weight: 700; color: var(--accent); }
+  #sheet .doc-subtitle { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; }
+  #sheet .parties { display: flex; gap: 16px; margin-bottom: 20px; }
+  #sheet .party {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  #sheet .party .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 3px; }
+  #sheet .party .name { font-weight: 700; }
+  #sheet .party div.lines { white-space: pre-line; font-size: 12.5px; }
+  #sheet section.article { margin-bottom: 14px; }
+  #sheet section.article h3 { font-size: 13.5px; margin: 0 0 5px; font-weight: 700; }
+  #sheet section.article p { margin: 0 0 6px; white-space: pre-line; }
+  #sheet .empty-msg {
+    margin: auto;
+    text-align: center;
+    color: var(--danger);
+    font-size: 14px;
+    padding: 40px;
+  }
+  #sheet .foot {
+    margin-top: auto;
+    padding-top: 16px;
+    font-size: 10.5px;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    white-space: pre-line;
+  }
+  #sheet .foot .disclaimer { font-style: italic; margin-top: 8px; }
+
+  /* ---------- Print ---------- */
+  @page { size: A4; margin: 12mm; }
+  @media print {
+    body { background: #fff; }
+    #toolbar, #editor { display: none !important; }
+    #layout { display: block; padding: 0; }
+    #sheet-wrap { display: block; }
+    #sheet {
+      width: auto;
+      min-height: 0;
+      padding: 0;
+      box-shadow: none;
+    }
+    #sheet, #sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Générateur de contrats freelance</h1>
+  <span id="b2b-badge">Réservé aux relations entre professionnels (B2B)</span>
+</div>
+
+<div id="layout">
+  <div id="editor">
+
+    <div id="stepper">
+      <div class="step-tab" data-step="1"><span class="num">1</span> Mon profil</div>
+      <div class="step-tab" data-step="2"><span class="num">2</span> Document + client</div>
+      <div class="step-tab" data-step="3"><span class="num">3</span> Clauses</div>
+    </div>
+
+    <!-- ===== Step 1 : Profil ===== -->
+    <div class="step-panel" data-panel="1">
+      <div class="card">
+        <h2>Mon profil freelance</h2>
+        <p class="hint">Ces informations sont enregistrées dans ce navigateur et réutilisées pour chaque document.</p>
+        <label class="field">Nom / raison sociale
+          <input type="text" id="p-nom" placeholder="Kevin Tomas — Custom Digital Services">
+        </label>
+        <div class="row">
+          <label class="field">Statut juridique
+            <select id="p-statut">
+              <option value="micro">Micro-entrepreneur</option>
+              <option value="ei">Entreprise individuelle (EI)</option>
+              <option value="eurl">EURL</option>
+              <option value="sasu">SASU</option>
+              <option value="autre">Autre</option>
+            </select>
+          </label>
+          <label class="field">SIREN
+            <input type="text" id="p-siren" placeholder="903 904 795">
+          </label>
+        </div>
+        <label class="field">Adresse
+          <textarea id="p-adresse" placeholder="1 rue Exemple&#10;75001 Paris"></textarea>
+        </label>
+        <div class="row">
+          <label class="field">Email
+            <input type="email" id="p-email" placeholder="contact@exemple.fr">
+          </label>
+          <label class="field">Téléphone
+            <input type="tel" id="p-telephone" placeholder="06 00 00 00 00">
+          </label>
+        </div>
+        <label class="check">
+          <input type="checkbox" id="p-franchise">
+          <span>Franchise en base de TVA (mention « TVA non applicable, art. 293 B du CGI »)</span>
+        </label>
+        <label class="field">Ville du tribunal compétent
+          <input type="text" id="p-ville-tribunal" placeholder="Paris">
+        </label>
+      </div>
+      <div id="wizard-nav">
+        <span></span>
+        <button type="button" class="primary" data-nav="next">Étape suivante</button>
+      </div>
+    </div>
+
+    <!-- ===== Step 2 : Document + client ===== -->
+    <div class="step-panel" data-panel="2">
+      <div class="card">
+        <h2>Type de document</h2>
+        <div id="doc-choice"></div>
+      </div>
+      <div class="card">
+        <h2>Coordonnées du client</h2>
+        <label class="field">Nom / raison sociale du client
+          <input type="text" id="c-nom" placeholder="Client SARL">
+        </label>
+        <label class="field">SIREN du client
+          <input type="text" id="c-siren" placeholder="123 456 789">
+        </label>
+        <label class="field">Adresse du client
+          <textarea id="c-adresse" placeholder="2 avenue Exemple&#10;69000 Lyon"></textarea>
+        </label>
+        <label class="field">Représentant (nom, qualité)
+          <input type="text" id="c-representant" placeholder="M. Jean Dupont, gérant">
+        </label>
+      </div>
+      <div class="card" id="doc-fields-card" style="display:none">
+        <h2>Détails du document</h2>
+        <div id="doc-fields"></div>
+      </div>
+      <div id="wizard-nav">
+        <button type="button" data-nav="prev">Étape précédente</button>
+        <button type="button" class="primary" data-nav="next">Étape suivante</button>
+      </div>
+    </div>
+
+    <!-- ===== Step 3 : Clauses ===== -->
+    <div class="step-panel" data-panel="3">
+      <div class="card">
+        <h2>Options de clauses</h2>
+        <p class="hint">Des valeurs sûres sont pré-sélectionnées. Les options signalées « à risque » ne sont jamais activées par défaut.</p>
+        <div id="doc-options"></div>
+      </div>
+      <div class="card">
+        <h2>Avant de générer</h2>
+        <div id="disclaimer-box"></div>
+        <div id="export-actions">
+          <button type="button" id="btn-print" class="primary">Imprimer / PDF</button>
+          <button type="button" id="btn-docx">Télécharger DOCX</button>
+        </div>
+        <div id="docx-status"></div>
+      </div>
+      <div id="wizard-nav">
+        <button type="button" data-nav="prev">Étape précédente</button>
+        <span></span>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="preview-col">
+    <div id="sheet-wrap">
+      <div id="sheet"></div>
+    </div>
+  </div>
+</div>
+
+<script src="clauses.js" defer></script>
+<script src="docx.min.js" defer></script>
+<script>
+"use strict";
+/* Placé après clauses.js / docx.min.js (defer) : on attend DOMContentLoaded pour
+   garantir que les deux scripts déférés ont fini de s'exécuter avant nous, quel
+   que soit l'ordre réel de chargement du navigateur. */
+document.addEventListener("DOMContentLoaded", function () {
+
+/* ---------- Storage ---------- */
+const LS_PROFILE = "contratsgen_profile";
+const LS_STATE = "contratsgen_state";
+
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch { return fallback; }
+}
+function saveJSON(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+const defaultProfile = {
+  nom: "", statut: "micro", siren: "", adresse: "",
+  email: "", telephone: "", franchiseTva: false, villeTribunal: ""
+};
+const defaultState = {
+  step: 1,
+  documentId: null,
+  client: { nom: "", siren: "", adresse: "", representant: "" },
+  fields: {},
+  options: {}
+};
+
+let profile = Object.assign({}, defaultProfile, loadJSON(LS_PROFILE, {}));
+let state = Object.assign({}, defaultState, loadJSON(LS_STATE, {}));
+state.client = Object.assign({}, defaultState.client, state.client || {});
+state.fields = state.fields || {};
+state.options = state.options || {};
+
+/* ---------- Helpers ---------- */
+const $ = (id) => document.getElementById(id);
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+const MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin",
+  "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+function todayFR() {
+  const d = new Date();
+  return `${d.getDate()} ${MOIS_FR[d.getMonth()]} ${d.getFullYear()}`;
+}
+function templatesReady() {
+  return typeof window.CONTRATS_TEMPLATES === "object" && window.CONTRATS_TEMPLATES
+    && typeof window.CONTRATS_TEMPLATES.documents === "object";
+}
+function currentDocument() {
+  if (!templatesReady() || !state.documentId) return null;
+  return window.CONTRATS_TEMPLATES.documents[state.documentId] || null;
+}
+function persistProfile() { saveJSON(LS_PROFILE, profile); }
+function persistState() { saveJSON(LS_STATE, state); }
+
+/* ---------- Stepper navigation ---------- */
+function renderStepper() {
+  for (const tab of document.querySelectorAll(".step-tab")) {
+    const n = Number(tab.dataset.step);
+    tab.classList.toggle("active", n === state.step);
+    tab.classList.toggle("done", n < state.step);
+  }
+  for (const panel of document.querySelectorAll(".step-panel")) {
+    panel.classList.toggle("active", Number(panel.dataset.panel) === state.step);
+  }
+}
+function goToStep(n) {
+  if (n === 3 && !state.documentId) {
+    alert("Choisis d'abord un type de document à l'étape 2.");
+    return;
+  }
+  state.step = n;
+  persistState();
+  renderStepper();
+}
+document.querySelectorAll(".step-tab").forEach((tab) => {
+  tab.addEventListener("click", () => goToStep(Number(tab.dataset.step)));
+});
+document.querySelectorAll('[data-nav="next"]').forEach((btn) => {
+  btn.addEventListener("click", () => goToStep(Math.min(3, state.step + 1)));
+});
+document.querySelectorAll('[data-nav="prev"]').forEach((btn) => {
+  btn.addEventListener("click", () => goToStep(Math.max(1, state.step - 1)));
+});
+
+/* ---------- Step 1 : profil ---------- */
+function profileToForm() {
+  $("p-nom").value = profile.nom;
+  $("p-statut").value = profile.statut;
+  $("p-siren").value = profile.siren;
+  $("p-adresse").value = profile.adresse;
+  $("p-email").value = profile.email;
+  $("p-telephone").value = profile.telephone;
+  $("p-franchise").checked = !!profile.franchiseTva;
+  $("p-ville-tribunal").value = profile.villeTribunal;
+}
+function formToProfile() {
+  profile.nom = $("p-nom").value.trim();
+  profile.statut = $("p-statut").value;
+  profile.siren = $("p-siren").value.trim();
+  profile.adresse = $("p-adresse").value;
+  profile.email = $("p-email").value.trim();
+  profile.telephone = $("p-telephone").value.trim();
+  profile.franchiseTva = $("p-franchise").checked;
+  profile.villeTribunal = $("p-ville-tribunal").value.trim();
+}
+for (const id of ["p-nom", "p-statut", "p-siren", "p-adresse", "p-email", "p-telephone", "p-franchise", "p-ville-tribunal"]) {
+  $(id).addEventListener("input", () => {
+    formToProfile();
+    persistProfile();
+    renderPreview();
+  });
+}
+
+/* ---------- Step 2 : choix du document ---------- */
+function renderDocChoice() {
+  const host = $("doc-choice");
+  if (!templatesReady()) {
+    host.innerHTML = '<p class="hint" style="color:var(--danger)">clauses.js non chargé : impossible de lister les documents.</p>';
+    return;
+  }
+  const docs = window.CONTRATS_TEMPLATES.documents;
+  host.innerHTML = "";
+  for (const id of Object.keys(docs)) {
+    const doc = docs[id];
+    const card = document.createElement("div");
+    card.className = "doc-card" + (state.documentId === id ? " active" : "");
+    card.dataset.docId = id;
+    card.innerHTML = `<span class="label">${escapeHtml(doc.label)}</span><span class="description">${escapeHtml(doc.description || "")}</span>`;
+    card.addEventListener("click", () => selectDocument(id));
+    host.appendChild(card);
+  }
+}
+function selectDocument(id) {
+  if (state.documentId === id) return;
+  state.documentId = id;
+  state.fields = {};
+  state.options = {};
+  const doc = currentDocument();
+  if (doc) {
+    for (const f of (doc.fields || [])) state.fields[f.id] = "";
+    for (const o of (doc.options || [])) state.options[o.id] = o.default;
+  }
+  persistState();
+  renderDocChoice();
+  renderDocFields();
+  renderDocOptions();
+  renderDisclaimerBox();
+  renderPreview();
+}
+
+/* ---------- Step 2 : coordonnées client ---------- */
+function clientToForm() {
+  $("c-nom").value = state.client.nom;
+  $("c-siren").value = state.client.siren;
+  $("c-adresse").value = state.client.adresse;
+  $("c-representant").value = state.client.representant;
+}
+function formToClient() {
+  state.client.nom = $("c-nom").value.trim();
+  state.client.siren = $("c-siren").value.trim();
+  state.client.adresse = $("c-adresse").value;
+  state.client.representant = $("c-representant").value.trim();
+}
+for (const id of ["c-nom", "c-siren", "c-adresse", "c-representant"]) {
+  $(id).addEventListener("input", () => {
+    formToClient();
+    persistState();
+    renderPreview();
+  });
+}
+
+/* ---------- Step 2 : champs spécifiques au document (fields) ---------- */
+function fieldInputHtml(f) {
+  const val = state.fields[f.id] ?? "";
+  const req = f.required ? "required" : "";
+  if (f.type === "textarea") {
+    return `<textarea id="fld-${f.id}" data-field="${f.id}" placeholder="${escapeHtml(f.placeholder || "")}" ${req}>${escapeHtml(val)}</textarea>`;
+  }
+  if (f.type === "number") {
+    return `<input type="number" id="fld-${f.id}" data-field="${f.id}" placeholder="${escapeHtml(f.placeholder || "")}" value="${escapeHtml(val)}" ${req}>`;
+  }
+  if (f.type === "date") {
+    return `<input type="date" id="fld-${f.id}" data-field="${f.id}" value="${escapeHtml(val)}" ${req}>`;
+  }
+  return `<input type="text" id="fld-${f.id}" data-field="${f.id}" placeholder="${escapeHtml(f.placeholder || "")}" value="${escapeHtml(val)}" ${req}>`;
+}
+function renderDocFields() {
+  const card = $("doc-fields-card");
+  const host = $("doc-fields");
+  const doc = currentDocument();
+  if (!doc || !(doc.fields || []).length) {
+    card.style.display = "none";
+    host.innerHTML = "";
+    return;
+  }
+  card.style.display = "flex";
+  host.innerHTML = doc.fields.map((f) => `
+    <label class="field">${escapeHtml(f.label)}${f.required ? " *" : ""}
+      ${fieldInputHtml(f)}
+    </label>
+    ${f.help ? `<p class="hint">${escapeHtml(f.help)}</p>` : ""}
+  `).join("");
+  for (const f of doc.fields) {
+    $("fld-" + f.id).addEventListener("input", (e) => {
+      state.fields[f.id] = e.target.value;
+      persistState();
+      renderPreview();
+    });
+  }
+}
+/* ---------- Step 3 : options de clauses ---------- */
+function optionControlHtml(o) {
+  const val = state.options[o.id];
+  if (o.type === "toggle") {
+    return `<label class="switch">
+      <input type="checkbox" id="opt-${o.id}" data-opt="${o.id}" ${val ? "checked" : ""}>
+      <span class="slider"></span>
+    </label>`;
+  }
+  if (o.type === "choice") {
+    const opts = (o.choices || []).map((c) =>
+      `<option value="${escapeHtml(c.id)}" ${c.id === val ? "selected" : ""}>${escapeHtml(c.label)}</option>`
+    ).join("");
+    return `<select id="opt-${o.id}" data-opt="${o.id}">${opts}</select>`;
+  }
+  if (o.type === "number") {
+    return `<input type="number" id="opt-${o.id}" data-opt="${o.id}" value="${escapeHtml(val)}" style="width:100px">`;
+  }
+  return `<input type="text" id="opt-${o.id}" data-opt="${o.id}" value="${escapeHtml(val)}">`;
+}
+function isOptionActive(o, val) {
+  if (o.type === "toggle") return val === true;
+  return JSON.stringify(val) !== JSON.stringify(o.default);
+}
+function renderDocOptions() {
+  const host = $("doc-options");
+  const doc = currentDocument();
+  if (!doc || !(doc.options || []).length) {
+    host.innerHTML = '<p class="hint">Aucune option pour ce document.</p>';
+    return;
+  }
+  host.innerHTML = doc.options.map((o) => {
+    const active = isOptionActive(o, state.options[o.id]);
+    return `
+    <div class="option-row" data-option-row="${o.id}">
+      <div class="option-head">
+        <span class="label">${escapeHtml(o.label)}${o.risky ? ' <span class="risky-badge">Clause à risque</span>' : ""}</span>
+        ${optionControlHtml(o)}
+      </div>
+      ${o.help ? `<span class="option-help">${escapeHtml(o.help)}</span>` : ""}
+      ${o.risky && o.warning ? `<div class="option-warning${active ? " show" : ""}" data-warning="${o.id}">${escapeHtml(o.warning)}</div>` : ""}
+    </div>`;
+  }).join("");
+  for (const o of doc.options) {
+    const el = $("opt-" + o.id);
+    el.addEventListener(o.type === "toggle" ? "change" : "input", () => {
+      let val;
+      if (o.type === "toggle") val = el.checked;
+      else if (o.type === "number") val = Number(el.value);
+      else val = el.value;
+      state.options[o.id] = val;
+      persistState();
+      const warnEl = document.querySelector(`[data-warning="${o.id}"]`);
+      if (warnEl) warnEl.classList.toggle("show", isOptionActive(o, val));
+      renderPreview();
+    });
+  }
+}
+
+/* ---------- Disclaimer box (step 3) ---------- */
+function renderDisclaimerBox() {
+  const box = $("disclaimer-box");
+  if (!templatesReady()) {
+    box.textContent = "clauses.js non chargé : le disclaimer légal ne peut pas être affiché.";
+    return;
+  }
+  box.innerHTML = `<strong>Réservé aux relations entre professionnels (B2B) : modèles types à personnaliser.</strong><br>${escapeHtml(window.CONTRATS_TEMPLATES.disclaimer)}`;
+}
+
+/* ---------- Aperçu live (#sheet) ---------- */
+function buildDataObject() {
+  return {
+    profile: {
+      nom: profile.nom, statut: profile.statut, siren: profile.siren, adresse: profile.adresse,
+      email: profile.email, telephone: profile.telephone,
+      franchiseTva: profile.franchiseTva, villeTribunal: profile.villeTribunal
+    },
+    client: Object.assign({}, state.client),
+    fields: Object.assign({}, state.fields),
+    options: Object.assign({}, state.options),
+    today: todayFR()
+  };
+}
+function renderPreview() {
+  const sheet = $("sheet");
+  if (!templatesReady()) {
+    sheet.innerHTML = '<div class="empty-msg">clauses.js non chargé : l\'aperçu du document ne peut pas être généré.</div>';
+    return;
+  }
+  const doc = currentDocument();
+  if (!doc) {
+    sheet.innerHTML = '<div class="empty-msg">Choisis un type de document à l\'étape 2 pour afficher l\'aperçu.</div>';
+    return;
+  }
+  let out;
+  try {
+    out = doc.build(buildDataObject());
+  } catch (err) {
+    console.error("[contrats-generator] build() a échoué :", err);
+    sheet.innerHTML = '<div class="empty-msg">Modèle de document introuvable ou invalide dans clauses.js.</div>';
+    return;
+  }
+  if (!out || !Array.isArray(out.sections)) {
+    sheet.innerHTML = '<div class="empty-msg">Modèle de document introuvable dans clauses.js.</div>';
+    return;
+  }
+  const partiesHtml = `
+    <div class="parties">
+      <div class="party">
+        <div class="label">Prestataire</div>
+        <div class="name">${escapeHtml(profile.nom) || "Nom du prestataire"}</div>
+        <div class="lines">${escapeHtml(profile.adresse)}${profile.siren ? "\nSIREN : " + escapeHtml(profile.siren) : ""}</div>
+      </div>
+      <div class="party">
+        <div class="label">Client</div>
+        <div class="name">${escapeHtml(state.client.nom) || "Nom du client"}</div>
+        <div class="lines">${escapeHtml(state.client.adresse)}${state.client.siren ? "\nSIREN : " + escapeHtml(state.client.siren) : ""}${state.client.representant ? "\nReprésenté par : " + escapeHtml(state.client.representant) : ""}</div>
+      </div>
+    </div>`;
+  const sectionsHtml = out.sections.map((s) => `
+    <section class="article">
+      <h3>${escapeHtml(s.heading)}</h3>
+      ${(s.paragraphs || []).map((p) => `<p>${escapeHtml(p)}</p>`).join("")}
+    </section>`).join("");
+  const footerMentions = Array.isArray(out.footerMentions) ? out.footerMentions : [];
+  sheet.innerHTML = `
+    <h2 class="doc-title">${escapeHtml(out.title || doc.label)}</h2>
+    ${out.subtitle ? `<p class="doc-subtitle">${escapeHtml(out.subtitle)}</p>` : ""}
+    ${partiesHtml}
+    ${sectionsHtml}
+    <div class="foot">
+      ${footerMentions.map(escapeHtml).join(" · ")}
+      <div class="disclaimer">${escapeHtml(window.CONTRATS_TEMPLATES.disclaimer)}</div>
+    </div>
+  `;
+}
+/* ---------- Export : impression / PDF ---------- */
+$("btn-print").addEventListener("click", () => window.print());
+
+/* ---------- Export : DOCX ----------
+   Le fichier docx.min.js (vendoré, lib dolanmiu/docx) et la génération du .docx
+   arrivent à la tâche suivante du build. Ici, on détecte proprement son absence
+   plutôt que de simuler un export : pas de stub silencieux. */
+$("btn-docx").addEventListener("click", () => {
+  const status = $("docx-status");
+  if (typeof window.docx === "undefined") {
+    status.textContent = "Export DOCX disponible à l'étape suivante du build (docx.min.js non chargé).";
+    return;
+  }
+  status.textContent = "Génération du DOCX en cours…";
+  // L'appel réel à l'API docx (window.docx) sera branché ici quand docx.min.js
+  // sera livré : ce bouton ne doit alors nécessiter aucun changement de câblage.
+});
+
+/* ---------- Initialisation ---------- */
+profileToForm();
+clientToForm();
+renderStepper();
+renderDocChoice();
+renderDocFields();
+renderDocOptions();
+renderDisclaimerBox();
+renderPreview();
+if (typeof window.docx === "undefined") {
+  $("docx-status").textContent = "Export DOCX disponible à l'étape suivante du build (docx.min.js non chargé).";
+}
+
+});
+</script>
+</body>
+</html>
