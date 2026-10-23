@@ -126,4 +126,7 @@ Double licence :
 - **Contenu des clauses** (`clauses.js`, textes juridiques des modèles) : licence
   **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.fr)**.
 
-Développé par Kevin Tomas / Custom Digital Services.
+## À propos
+
+Conçu et maintenu par [Kevin Tomas](https://www.custom-digital-services.com/?utm_source=github&utm_medium=readme&utm_campaign=contrats-freelance), consultant freelance Power Platform et IA Microsoft (Custom Digital Services).
+Essayer en ligne : [www.custom-digital-services.com/outils/contrats](https://www.custom-digital-services.com/outils/contrats/?utm_source=github&utm_medium=readme&utm_campaign=contrats-freelance). Autres outils gratuits : [www.custom-digital-services.com/outils](https://www.custom-digital-services.com/outils/?utm_source=github&utm_medium=readme&utm_campaign=contrats-freelance)
